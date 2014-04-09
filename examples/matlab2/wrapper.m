@@ -118,7 +118,37 @@ for f = 1:num
     
     rec_f = sum((YYY - AAA_pos*beta(1:size(AAA_pos,2),:)).^2);      % the confidence value of each candidate
     rec_b = sum((YYY - AAA_neg*beta(size(AAA_pos,2)+1:end,:)).^2);
-    con = exp(-rec_f/gamma)./exp(-rec_b/gamma);                     
+    con = exp(-rec_f/gamma)./exp(-rec_b/gamma);    
+    
+    
+    opts=[];
+
+    % Starting point
+    opts.init=2;        % starting from a zero point
+
+    % Termination 
+    opts.tFlag=5;       % run .maxIter iterations
+    opts.maxIter=100;   % maximum number of iterations
+
+    % regularization
+    opts.rFlag=0;       % use ratio
+
+    % Normalization
+    opts.nFlag=0;       % without normalization
+
+    % Group Property
+    opts.ind=[ [1, size(AAA_pos, 2) , 0]', [size(AAA_pos,2)+1, 2*size(AAA_pos,2), 1]'];
+     
+    z=[0.1, 0.2];
+    
+    con = zeros(size(YYY,2),1);
+    beta = zeros(size([AAA_pos AAA_neg],2), size(YYY,2));
+    
+    for i=1:size(YYY,2)
+    
+        [beta(i,:), c, funVal, ValueL]= sgLogisticR([AAA_pos AAA_neg], YYY(:,i), z, opts);
+    
+    end
 
 %     %%----------------- Sparsity-based Generative Model (SGM) ----------------%%
 %     yita = 0.01;

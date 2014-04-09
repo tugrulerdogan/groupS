@@ -18,6 +18,10 @@ tracker_directory = fullfile(fileparts(mfilename('fullpath')), 'tracker');
 % rmpath(tracker_directory);
 addpath(tracker_directory);
 
+slep_directory = fullfile(fileparts(mfilename('fullpath')), 'SLEP');
+addpath(slep_directory);
+
+
 % **********************************
 % VOT: Read input data
 % **********************************
@@ -101,6 +105,8 @@ for f = 1:num
     
     [wimgs Y param] = affineSample(double(img), sz, opt, param);    % draw N candidates with particle filter
     
+    size(Y)
+    
     YY = normVector(Y);                                             % normalization
     AA_pos = normVector(A_pos);
     AA_neg = normVector(A_neg);
@@ -113,11 +119,22 @@ for f = 1:num
     
     paramSR.L = length(YYY(:,1));                                   % represent each candidate with training template set
     paramSR.lambda = 0.01;
-    beta = mexLasso(YYY, [AAA_pos AAA_neg], paramSR);
-    beta = full(beta);
+%     beta = mexLasso(YYY, [AAA_pos AAA_neg], paramSR);
+% Tugrul
+    beta_pos = mexLasso(YYY, AAA_pos , paramSR);
+    beta_neg = mexLasso(YYY, AAA_neg , paramSR);
+
+%     beta = full(beta);
+% Tugrul
+%     beta_pos = full(beta_pos);
+%     beta_neg = full(beta_neg);
     
-    rec_f = sum((YYY - AAA_pos*beta(1:size(AAA_pos,2),:)).^2);      % the confidence value of each candidate
-    rec_b = sum((YYY - AAA_neg*beta(size(AAA_pos,2)+1:end,:)).^2);
+%     rec_f = sum((YYY - AAA_pos*beta(1:size(AAA_pos,2),:)).^2);      % the confidence value of each candidate
+%     rec_b = sum((YYY - AAA_neg*beta(size(AAA_pos,2)+1:end,:)).^2);
+% Tugrul    
+    rec_f = sum((YYY - AAA_pos*beta_pos).^2);      % the confidence value of each candidate
+    rec_b = sum((YYY - AAA_neg*beta_neg).^2);
+    
     con = exp(-rec_f/gamma)./exp(-rec_b/gamma);                     
 
 %     %%----------------- Sparsity-based Generative Model (SGM) ----------------%%

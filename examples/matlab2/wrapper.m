@@ -52,6 +52,7 @@ y = y + H/2;
 
 addpath('tracker');
 trackparam;                                                       % initial position and affine parameters
+opt.numsample = 10;
 opt.tmplsize = [32 32];                                           % [height width]
 sz = opt.tmplsize;
 n_sample = opt.numsample;
@@ -137,7 +138,7 @@ for f = 1:num
     opts.nFlag=0;       % without normalization
 
     % Group Property
-    opts.ind=[ [1, size(AAA_pos, 2) , 0]', [size(AAA_pos,2)+1, 2*size(AAA_pos,2), 1]'];
+    opts.ind=[ [1, size(AAA_pos, 2) , 0]', [size(AAA_pos,2)+1, size(AAA_pos,2)+ 1 + size(AAA_neg,2), 1]'];
      
     z=[0.1, 0.2];
     
@@ -146,8 +147,33 @@ for f = 1:num
     
     for i=1:size(YYY,2)
     
-        [beta(i,:), c, funVal, ValueL]= sgLogisticR([AAA_pos AAA_neg], YYY(:,i), z, opts);
+%         [beta(i,:), c, funVal, ValueL]= sgLogisticR([AAA_pos AAA_neg], YYY(:,i), z, opts);
     
+%         [beta(i,:), a, b, c, d, e]= SpaRSA(YYY(:,i), [AAA_pos AAA_neg],  0.8);
+
+
+
+
+        bet = [1,1]/mean(abs(YYY(:,i))); % penalty parameters
+        groups = [ones(size(AAA_pos,2),1)'*2 ones(size(AAA_neg,2),1)']
+        weights = ones(2,1)
+        [beta(:,i),Out_yp] = YALL1_group([AAA_pos AAA_neg],YYY(:,i),groups,...
+                                       'StopTolerance', 1e-6, ...
+                                       'GrpWeights', weights, ...
+                                       'overlap', false, ...
+                                       'nonorthA', true, ...
+                                       'ExactLinSolve', true, ...
+                                       'Solver', 1, ...             % 1 - primal; 2 - dual
+                                       'QuadPenaltyPar', bet, ...
+                                       'maxIter', 500);
+                                   
+%         relerr = norm(beta(i,:)-x0)/norm(x0);  % relative error
+        relerr = norm(beta(:,i));  % relative error
+
+        fprintf('YALL1 Primal (Exact: true, Continuation: false): \n')
+        fprintf('iter %4i, time %6.2f, relerr %6.2e\n\n',...
+            Out_yp.iter,Out_yp.cputime,relerr)
+
     end
 
 %     %%----------------- Sparsity-based Generative Model (SGM) ----------------%%

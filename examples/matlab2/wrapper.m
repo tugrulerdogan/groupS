@@ -6,6 +6,8 @@ function wrapper()
 % *************************************************************
 onCleanup(@() 1+2 );
 
+debug =0
+
 % *************************************************************
 % VOT: Set random seed to a different value every time.
 % *************************************************************
@@ -52,7 +54,7 @@ y = y + H/2;
 
 addpath('tracker');
 trackparam;                                                       % initial position and affine parameters
-opt.numsample = 10;
+opt.numsample = 100;
 opt.tmplsize = [32 32];                                           % [height width]
 sz = opt.tmplsize;
 n_sample = opt.numsample;
@@ -142,22 +144,29 @@ for f = 1:num
      
     z=[0.1, 0.2];
     
-    con = zeros(size(YYY,2),1);
+    con = zeros(opt.numsample,1);
     beta = zeros(size([AAA_pos AAA_neg],2), size(YYY,2));
     
     for i=1:size(YYY,2)
     
-%         [beta(i,:), c, funVal, ValueL]= sgLogisticR([AAA_pos AAA_neg], YYY(:,i), z, opts);
+%         [beta(:,i), c, funVal, ValueL]= sgLogisticR([AAA_pos AAA_neg], YYY(:,i), z, opts);
     
-%         [beta(i,:), a, b, c, d, e]= SpaRSA(YYY(:,i), [AAA_pos AAA_neg],  0.8);
+%         [beta(:,i), a, b, c, d, e]= SpaRSA(YYY(:,i), [AAA_pos AAA_neg],  0.8);
 
 
 
 
         bet = [1,1]/mean(abs(YYY(:,i))); % penalty parameters
-        groups = [ones(size(AAA_pos,2),1)'*2 ones(size(AAA_neg,2),1)']
-        weights = ones(2,1)
+        groups = [ones(size(AAA_pos,2),1)'*2 ones(size(AAA_neg,2),1)'];
+        weights = [1,1]';%ones(2,1)
+        
+        
+        
+%         subplot(1,2,1);
+%         imshow(uint8(reshape(Y(:,i),32,32)));
+        
         [beta(:,i),Out_yp] = YALL1_group([AAA_pos AAA_neg],YYY(:,i),groups,...
+                                       'Nonnegative', true, ...
                                        'StopTolerance', 1e-6, ...
                                        'GrpWeights', weights, ...
                                        'overlap', false, ...
@@ -167,12 +176,57 @@ for f = 1:num
                                        'QuadPenaltyPar', bet, ...
                                        'maxIter', 500);
                                    
+%         beta(51:end,i) = 0;
+
+        ress = [AAA_pos AAA_neg] * beta(:,i);
+        ress2 = AAA_pos  * beta(1:size(AAA_pos,2),i);
+        
+        con(i) = exp(-sum(YYY(:,i) - ress2)/gamma);
+        
+if debug == 1  
+        figure(3)      
+        subplot(2,3,1);
+        imagesc(YYY(:,i));
+        subplot(2,3,2);
+        imagesc(ress);
+        subplot(2,3,3);
+        imagesc(ress2);
+        
+        
+        noise_std = 0*5e-3;
+        noise = randn( size(ress,1),1);
+        ress     = ress + noise_std*norm(ress)/norm(noise)*noise;
+        
+        
+        
+         [buff,Out_yp] = YALL1_group([AAA_pos AAA_neg],ress,groups,...
+                                       'Nonnegative', true, ...
+                                       'StopTolerance', 1e-6, ...
+                                       'GrpWeights', weights, ...
+                                       'overlap', false, ...
+                                       'nonorthA', true, ...
+                                       'ExactLinSolve', true, ...
+                                       'Solver', 1, ...             % 1 - primal; 2 - dual
+                                       'QuadPenaltyPar', bet, ...
+                                       'maxIter', 500);
+                                   
+                                   
+        subplot(2,3,4);
+        imagesc(ress);
+        subplot(2,3,5);
+        imagesc([AAA_pos AAA_neg] * buff);
+        subplot(2,3,6);
+        imagesc( AAA_pos * buff(1:size(AAA_pos,2)));
+        
+        
+        figure(1)
+end
 %         relerr = norm(beta(i,:)-x0)/norm(x0);  % relative error
         relerr = norm(beta(:,i));  % relative error
 
         fprintf('YALL1 Primal (Exact: true, Continuation: false): \n')
-        fprintf('iter %4i, time %6.2f, relerr %6.2e\n\n',...
-            Out_yp.iter,Out_yp.cputime,relerr)
+        fprintf('iter %4i, time %6.2f, relerr %6.2e   , nonzero %4i , size %4i \n\n',...
+            Out_yp.iter,Out_yp.cputime,relerr,  nnz(beta(:,i)), size(beta(:,i),1))
 
     end
 

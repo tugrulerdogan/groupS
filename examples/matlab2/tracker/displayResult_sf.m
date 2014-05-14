@@ -23,3 +23,8 @@ color = [ 1 0 0 ];
 
 axis off;
 drawnow;
+
+fframe=getframe(gca)
+[Xframe, mapframe] = frame2im(fframe);
+
+imwrite(Xframe,['D:\vot7\rests\' sprintf('%8.8d',f) '.jpg'],'jpeg')

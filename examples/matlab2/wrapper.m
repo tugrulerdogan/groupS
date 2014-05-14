@@ -17,6 +17,8 @@ load(fullfile(fileparts(mfilename('fullpath')), 'cur.mat'));
 RandStream.setGlobalStream(RandStream('mt19937ar', 'Seed', sum(clock)));
 
 tracker_directory = fullfile(fileparts(mfilename('fullpath')), 'tracker');
+
+
 % rmpath(tracker_directory);
 addpath(tracker_directory);
 
@@ -25,6 +27,9 @@ addpath(tracker_directory);
 % **********************************
 [images, region] = vot_initialize();
 
+groundtruth_file = fullfile(fileparts(images{1}), 'groundtruth.txt');
+groundtruth = double(csvread(groundtruth_file));
+save('D:\vot7\rests\gt.mat', 'groundtruth')
 %% Initialize tracker variables
 index_start = 1;
 % Similarity Threshold
@@ -87,6 +92,8 @@ paramSR.lambda2 = 0;
 paramSR.mode = 2;
 alpha_p = zeros(Fisize, prod(patchnum), num);
 result = zeros(num, 6);
+
+rests = zeros(num,10);
 
 %%******************************************* Do Tracking *********************************************%%
 
@@ -288,7 +295,11 @@ end
     
     param.est = affparam2mat(param.param(:,id_max));
     result(f,:) = param.est';
-    displayResult_sf;                                               % display the tracking result in each frame
+    displayResult_sf;           % display the tracking result in each frame
+    
+    rests(f,:) = corners(:)
+    
+    save('D:\vot7\rests\rests.mat', 'rests')
     
     %%----------------- Update Scheme ----------------%%
     upRate = 5;

@@ -84,6 +84,7 @@ paramSR.lambda2 = 0;
 paramSR.mode = 2;
 alpha_p = zeros(Fisize, prod(patchnum), num);
 result = zeros(num, 6);
+results = zeros(num, 10);
 
 %%******************************************* Do Tracking *********************************************%%
 
@@ -179,6 +180,18 @@ for f = 1:num
     param.est = affparam2mat(param.param(:,id_max));
     result(f,:) = param.est';
     displayResult_sf;                                               % display the tracking result in each frame
+    
+    results(f,:) =  corners(:)
+%     rect= round(aff2image(param.est', sz_T));
+%     inp	= reshape(rect,2,4);
+%     
+%     results(f,1)=round(mean(inp(2,:)));
+%     results(f,2)=round(mean(inp(1,:)));
+%     results(f,4)=inp(1,4)-inp(1,1);
+%     results(f,3)=inp(2,4)-inp(2,1);
+    
+    
+    save('D:\vot7\rests\results.mat', 'results')
     
     %%----------------- Update Scheme ----------------%%
     upRate = 5;

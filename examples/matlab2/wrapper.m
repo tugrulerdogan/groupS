@@ -23,6 +23,8 @@ addpath(tracker_directory);
 % **********************************
 [images, region] = vot_initialize();
 
+load('D:\vot7\rests\gists.mat')
+
 %% Initialize tracker variables
 index_start = 1;
 % Similarity Threshold
@@ -64,10 +66,28 @@ param0 = affparam2mat(param0);
 param = [];
 param.est = param0';
 
+param.imageSize = 32;
+param.orientationsPerScale = [8 8 8 8]; % number of orientations per scale (from HF to LF)
+param.numberBlocks = 4;
+param.fc_prefilt = 4
+
 num_p = 50;                                                         % obtain positive and negative templates for the SDC
 num_n = 200;
 [dataPath,dname,dext] = fileparts(images{1})
-[A_poso A_nego] = affineTrainG(dataPath, sz, opt, param, num_p, num_n, forMat, p0);        
+[A_poso A_nego] = affineTrainG(dataPath, sz, opt, param, num_p, num_n, forMat, p0); 
+
+[A_poso_gist A_poso_hist param] = vec2gist(A_poso, param);
+[A_nego_gist A_nego_hist param] = vec2gist(A_nego, param);
+
+% A_poso = A_poso_gist;
+% A_nego = A_nego_gist;
+
+A_pos_gist = A_poso_gist;
+A_neg_gist = A_nego_gist;
+
+A_pos_hist = A_poso_hist;
+A_neg_hist = A_nego_hist;
+
 A_pos = A_poso;
 A_neg = A_nego;                                                     
 
@@ -86,6 +106,8 @@ alpha_p = zeros(Fisize, prod(patchnum), num);
 result = zeros(num, 6);
 results = zeros(num, 10);
 
+
+
 %%******************************************* Do Tracking *********************************************%%
 
 for f = 1:num
@@ -101,16 +123,32 @@ for f = 1:num
     gamma = 0.4;
     
     [wimgs Y param] = affineSample(double(img), sz, opt, param);    % draw N candidates with particle filter
+        
+    [gists hists param] = im2gist(wimgs, param);
+    
+%     Y = gists;
+    YYY_gist = gists;
+    YYY_hist = hists;
     
     YY = normVector(Y);                                             % normalization
     AA_pos = normVector(A_pos);
     AA_neg = normVector(A_neg);
     
-    P = selectFeature(AA_pos, AA_neg, paramSR);                     % feature selection
+%     P = selectFeature(AA_pos, AA_neg, paramSR);                     % feature selection
+%     
+%     YYY = P'*YY;                                                    % project the original feature space to the selected feature space
+%     AAA_pos = P'*AA_pos;
+%     AAA_neg = P'*AA_neg;
     
-    YYY = P'*YY;                                                    % project the original feature space to the selected feature space
-    AAA_pos = P'*AA_pos;
-    AAA_neg = P'*AA_neg;
+    YYY = YY;                                                    % project the original feature space to the selected feature space
+    AAA_pos = AA_pos;
+    AAA_neg = AA_neg;
+    
+    AAA_pos_gist = A_pos_gist;
+    AAA_neg_gist = A_neg_gist;
+    
+    AAA_pos_hist = A_pos_hist;
+    AAA_neg_hist = A_neg_hist;
     
     paramSR.L = length(YYY(:,1));                                   % represent each candidate with training template set
     paramSR.lambda = 0.01;
@@ -119,7 +157,23 @@ for f = 1:num
     
     rec_f = sum((YYY - AAA_pos*beta(1:size(AAA_pos,2),:)).^2);      % the confidence value of each candidate
     rec_b = sum((YYY - AAA_neg*beta(size(AAA_pos,2)+1:end,:)).^2);
-    con = exp(-rec_f/gamma)./exp(-rec_b/gamma);                     
+    con = exp(-rec_f/gamma)./exp(-rec_b/gamma);    
+    
+    beta = mexLasso(YYY_gist, [AAA_pos_gist AAA_neg_gist], paramSR);
+    beta = full(beta);
+    
+    rec_f = sum((YYY_gist - AAA_pos_gist*beta(1:size(AAA_pos_gist,2),:)).^2);      % the confidence value of each candidate
+    rec_b = sum((YYY_gist - AAA_neg_gist*beta(size(AAA_pos_gist,2)+1:end,:)).^2);
+    con_gist = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
+    
+    beta = mexLasso(YYY_hist, [AAA_pos_hist AAA_neg_hist], paramSR);
+    beta = full(beta);
+    
+    rec_f = sum((YYY_hist - AAA_pos_hist*beta(1:size(AAA_pos_hist,2),:)).^2);      % the confidence value of each candidate
+    rec_b = sum((YYY_hist - AAA_neg_hist*beta(size(AAA_pos_hist,2)+1:end,:)).^2);
+    con_hist = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
+    
+    con_sum  = con + con_gist + con_hist;
 
 %     %%----------------- Sparsity-based Generative Model (SGM) ----------------%%
 %     yita = 0.01;
@@ -173,15 +227,29 @@ for f = 1:num
 %     end
     
     %%----------------- Collaborative Model ----------------%%
-    likelihood = con;%.*sim;
+%     likelihood = con;%.*sim;
+%     [v_max,id_max] = max(likelihood);
+    
+% %     Toplam recons olacak ayari ayri alip ortalama yerine
+% %     yeni partikellar da ortak olasilik uzerinden turetiledcek
+% %     hog    vl-feat
+% %     color histogram
+% %     
+% %     
+% %     l1 a gore colora gore hoga gore ayri ayri hepsi berarber tabloda haftaya
+% %     
+% %     frame frame cizim yap 722 proje sonuclarini debug icin
+    
+    likelihood = con_sum;%.*sim;
     [v_max,id_max] = max(likelihood);
     
     
     param.est = affparam2mat(param.param(:,id_max));
+%     param.est = (param.est + affparam2mat(param.param(:,id_max_gist)))/2;
     result(f,:) = param.est';
     displayResult_sf;                                               % display the tracking result in each frame
     
-    results(f,:) =  corners(:)
+    results(f,:) =  corners(:);
 %     rect= round(aff2image(param.est', sz_T));
 %     inp	= reshape(rect,2,4);
 %     
@@ -220,7 +288,7 @@ for t = 1:count
     results(t,4)=inp(1,4)-inp(1,1);
     results(t,3)=inp(2,4)-inp(2,1);
 
-    results
+    results;
  
 end
 

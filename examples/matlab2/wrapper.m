@@ -74,22 +74,45 @@ param.fc_prefilt = 4
 num_p = 50;                                                         % obtain positive and negative templates for the SDC
 num_n = 200;
 [dataPath,dname,dext] = fileparts(images{1})
-[A_poso A_nego] = affineTrainG(dataPath, sz, opt, param, num_p, num_n, forMat, p0); 
+[dic_pos{1} dic_neg{1}] = affineTrainG(dataPath, sz, opt, param, num_p, num_n, forMat, p0); 
 
-[A_poso_gist A_poso_hist param] = vec2gist(A_poso, param);
-[A_nego_gist A_nego_hist param] = vec2gist(A_nego, param);
 
-% A_poso = A_poso_gist;
-% A_nego = A_nego_gist;
 
-A_pos_gist = A_poso_gist;
-A_neg_gist = A_nego_gist;
 
-A_pos_hist = A_poso_hist;
-A_neg_hist = A_nego_hist;
 
-A_pos = A_poso;
-A_neg = A_nego;                                                     
+% [dic_pos{2}  param] = vec2gist(dic_pos{1}, param);
+% [dic_neg{2}  param] = vec2gist(dic_neg{1}, param);
+% 
+% [dic_pos{3} param] = vec2hist(dic_pos{1}, param);
+% [dic_neg{3} param] = vec2hist(dic_neg{1}, param);
+
+
+vecfunctions = {@affineTrainG @vec2gist, @vec2hist}
+
+for i=2:size(vecfunctions,2)
+    
+   [dic_pos{i}  param] = vecfunctions{i}(dic_pos{1}, param);
+   [dic_neg{i}  param] = vecfunctions{i}(dic_neg{1}, param);
+
+    
+    
+end
+
+
+
+
+
+% dic_pos{1} = dic_pos{2};
+% dic_neg{1} = dic_neg{3};
+
+A_pos_gist = dic_pos{2};
+A_neg_gist = dic_neg{2};
+
+A_pos_hist = dic_pos{3};
+A_neg_hist = dic_neg{3};
+
+A_pos = dic_pos{1};
+A_neg = dic_neg{1};                                                     
 
 patchsize = [6 6];                                                  % obtain the dictionary for the SGM
 patchnum(1) = length(patchsize(1)/2 : 2: (sz(1)-patchsize(1)/2));
@@ -123,12 +146,14 @@ for f = 1:num
     gamma = 0.4;
     
     [wimgs Y param] = affineSample(double(img), sz, opt, param);    % draw N candidates with particle filter
-        
-    [gists hists param] = im2gist(wimgs, param);
+            
+    [particleforms{2} param] = im2gist(wimgs, param);
+    [particleforms{3} param] = im2hist(wimgs, param);
+
     
 %     Y = gists;
-    YYY_gist = gists;
-    YYY_hist = hists;
+    YYY_gist = particleforms{2};
+    YYY_hist = particleforms{3};
     
     YY = normVector(Y);                                             % normalization
     AA_pos = normVector(A_pos);
@@ -144,11 +169,11 @@ for f = 1:num
     AAA_pos = AA_pos;
     AAA_neg = AA_neg;
     
-    AAA_pos_gist = A_pos_gist;
-    AAA_neg_gist = A_neg_gist;
-    
-    AAA_pos_hist = A_pos_hist;
-    AAA_neg_hist = A_neg_hist;
+%     dic_pos{2} = A_pos_gist;
+%     dic_neg{2} = A_neg_gist;
+%     
+%     dic_pos{3} = A_pos_hist;
+%     dic_neg{3} = A_neg_hist;
     
     paramSR.L = length(YYY(:,1));                                   % represent each candidate with training template set
     paramSR.lambda = 0.01;
@@ -159,21 +184,34 @@ for f = 1:num
     rec_b = sum((YYY - AAA_neg*beta(size(AAA_pos,2)+1:end,:)).^2);
     con = exp(-rec_f/gamma)./exp(-rec_b/gamma);    
     
-    beta = mexLasso(YYY_gist, [AAA_pos_gist AAA_neg_gist], paramSR);
-    beta = full(beta);
+%     beta = mexLasso(particleforms{2}, [dic_pos{2} dic_neg{2}], paramSR);
+%     beta = full(beta);
+%     
+%     rec_f = sum((particleforms{2} - dic_pos{2}*beta(1:size(dic_pos{2},2),:)).^2);      % the confidence value of each candidate
+%     rec_b = sum((particleforms{2} - dic_neg{2}*beta(size(dic_pos{2},2)+1:end,:)).^2);
+%     con_gist = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
+%     
+%     beta = mexLasso( particleforms{3}, [dic_pos{3} dic_neg{3}], paramSR);
+%     beta = full(beta);
+%     
+%     rec_f = sum(( particleforms{3} - dic_pos{3}*beta(1:size(dic_pos{3},2),:)).^2);      % the confidence value of each candidate
+%     rec_b = sum(( particleforms{3} - dic_neg{3}*beta(size(dic_pos{3},2)+1:end,:)).^2);
+%     con_hist = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
     
-    rec_f = sum((YYY_gist - AAA_pos_gist*beta(1:size(AAA_pos_gist,2),:)).^2);      % the confidence value of each candidate
-    rec_b = sum((YYY_gist - AAA_neg_gist*beta(size(AAA_pos_gist,2)+1:end,:)).^2);
-    con_gist = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
+    for i=2:size(vecfunctions,2)
+        beta = mexLasso( particleforms{i}, [dic_pos{i} dic_neg{i}], paramSR);
+        beta = full(beta);
+
+        rec_f = sum(( particleforms{i} - dic_pos{i}*beta(1:size(dic_pos{i},2),:)).^2);      % the confidence value of each candidate
+        rec_b = sum(( particleforms{i} - dic_neg{i}*beta(size(dic_pos{i},2)+1:end,:)).^2);
+        conn{i} = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
+    end
     
-    beta = mexLasso(YYY_hist, [AAA_pos_hist AAA_neg_hist], paramSR);
-    beta = full(beta);
-    
-    rec_f = sum((YYY_hist - AAA_pos_hist*beta(1:size(AAA_pos_hist,2),:)).^2);      % the confidence value of each candidate
-    rec_b = sum((YYY_hist - AAA_neg_hist*beta(size(AAA_pos_hist,2)+1:end,:)).^2);
-    con_hist = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
-    
-    con_sum  = con + con_gist + con_hist;
+    con_sum  = con;
+    for i=2:size(vecfunctions,2)-1
+%     con_sum  = con + con_gist;% + con_hist;
+        con_sum = con_sum + conn{i};
+    end
 
 %     %%----------------- Sparsity-based Generative Model (SGM) ----------------%%
 %     yita = 0.01;

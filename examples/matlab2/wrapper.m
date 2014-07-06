@@ -88,6 +88,7 @@ num_n = 200;
 
 
 vecfunctions = {@affineTrainG @vec2gist, @vec2hist}
+imfunctions = {@affineSample @im2gist @im2hist};
 
 for i=2:size(vecfunctions,2)
     
@@ -105,11 +106,11 @@ end
 % dic_pos{1} = dic_pos{2};
 % dic_neg{1} = dic_neg{3};
 
-A_pos_gist = dic_pos{2};
-A_neg_gist = dic_neg{2};
-
-A_pos_hist = dic_pos{3};
-A_neg_hist = dic_neg{3};
+% A_pos_gist = dic_pos{2};
+% A_neg_gist = dic_neg{2};
+% 
+% A_pos_hist = dic_pos{3};
+% A_neg_hist = dic_neg{3};
 
 A_pos = dic_pos{1};
 A_neg = dic_neg{1};                                                     
@@ -147,16 +148,16 @@ for f = 1:num
     
     [wimgs Y param] = affineSample(double(img), sz, opt, param);    % draw N candidates with particle filter
             
-    imfunctions = {@affineSample, @im2gist, @im2hist};
+
     
     for i = 2:size(imfunctions,2)
     [particleforms{i} param] = imfunctions{i}(wimgs, param);
     end
 
     
-%     Y = gists;
-    YYY_gist = particleforms{2};
-    YYY_hist = particleforms{3};
+% %     Y = gists;
+%     YYY_gist = particleforms{2};
+%     YYY_hist = particleforms{3};
     
     YY = normVector(Y);                                             % normalization
     AA_pos = normVector(A_pos);

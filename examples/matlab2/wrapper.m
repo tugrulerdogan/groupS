@@ -147,8 +147,11 @@ for f = 1:num
     
     [wimgs Y param] = affineSample(double(img), sz, opt, param);    % draw N candidates with particle filter
             
-    [particleforms{2} param] = im2gist(wimgs, param);
-    [particleforms{3} param] = im2hist(wimgs, param);
+    imfunctions = {@affineSample, @im2gist, @im2hist};
+    
+    for i = 2:size(imfunctions,2)
+    [particleforms{i} param] = imfunctions{i}(wimgs, param);
+    end
 
     
 %     Y = gists;

@@ -25,6 +25,12 @@ addpath(tracker_directory);
 
 load('D:\vot7\rests\gists.mat')
 
+itrts = {[1] [2] [3] [1, 2] [1, 3] [2, 3] [1, 2, 3]}
+
+for iterations = itrts
+iterations = cell2mat(iterations)
+
+
 %% Initialize tracker variables
 index_start = 1;
 % Similarity Threshold
@@ -74,7 +80,8 @@ param.fc_prefilt = 4
 num_p = 50;                                                         % obtain positive and negative templates for the SDC
 num_n = 200;
 [dataPath,dname,dext] = fileparts(images{1})
-[dic_pos{1} dic_neg{1}] = affineTrainG(dataPath, sz, opt, param, num_p, num_n, forMat, p0); 
+[bf,tname,bf] = fileparts(dataPath)
+[A_pos A_neg] = affineTrainG(dataPath, sz, opt, param, num_p, num_n, forMat, p0); 
 
 
 
@@ -87,13 +94,13 @@ num_n = 200;
 % [dic_neg{3} param] = vec2hist(dic_neg{1}, param);
 
 
-vecfunctions = {@affineTrainG @vec2gist, @vec2hist}
-imfunctions = {@affineSample @im2gist @im2hist};
+vecfunctions = {@vec2main @vec2gist, @vec2hist};
+imfunctions = {@im2main @im2gist @im2hist};
 
-for i=2:size(vecfunctions,2)
+for i=iterations%2:size(vecfunctions,2)
     
-   [dic_pos{i}  param] = vecfunctions{i}(dic_pos{1}, param);
-   [dic_neg{i}  param] = vecfunctions{i}(dic_neg{1}, param);
+   [dic_pos{i},  param] = vecfunctions{i}(A_pos, param);
+   [dic_neg{i},  param] = vecfunctions{i}(A_neg, param);
 
     
     
@@ -112,8 +119,8 @@ end
 % A_pos_hist = dic_pos{3};
 % A_neg_hist = dic_neg{3};
 
-A_pos = dic_pos{1};
-A_neg = dic_neg{1};                                                     
+% A_pos = dic_pos{1};
+% A_neg = dic_neg{1};                                                     
 
 patchsize = [6 6];                                                  % obtain the dictionary for the SGM
 patchnum(1) = length(patchsize(1)/2 : 2: (sz(1)-patchsize(1)/2));
@@ -150,8 +157,8 @@ for f = 1:num
             
 
     
-    for i = 2:size(imfunctions,2)
-    [particleforms{i} param] = imfunctions{i}(wimgs, param);
+    for i = iterations% 2:size(imfunctions,2)
+        [particleforms{i} param] = imfunctions{i}(wimgs, param);
     end
 
     
@@ -181,28 +188,30 @@ for f = 1:num
     
     paramSR.L = length(YYY(:,1));                                   % represent each candidate with training template set
     paramSR.lambda = 0.01;
-    beta = mexLasso(YYY, [AAA_pos AAA_neg], paramSR);
-    beta = full(beta);
-    
-    rec_f = sum((YYY - AAA_pos*beta(1:size(AAA_pos,2),:)).^2);      % the confidence value of each candidate
-    rec_b = sum((YYY - AAA_neg*beta(size(AAA_pos,2)+1:end,:)).^2);
-    con = exp(-rec_f/gamma)./exp(-rec_b/gamma);    
-    
-%     beta = mexLasso(particleforms{2}, [dic_pos{2} dic_neg{2}], paramSR);
+%     beta = mexLasso(YYY, [AAA_pos AAA_neg], paramSR);
 %     beta = full(beta);
 %     
-%     rec_f = sum((particleforms{2} - dic_pos{2}*beta(1:size(dic_pos{2},2),:)).^2);      % the confidence value of each candidate
-%     rec_b = sum((particleforms{2} - dic_neg{2}*beta(size(dic_pos{2},2)+1:end,:)).^2);
-%     con_gist = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
+%     rec_f = sum((YYY - AAA_pos*beta(1:size(AAA_pos,2),:)).^2);      % the confidence value of each candidate
+%     rec_b = sum((YYY - AAA_neg*beta(size(AAA_pos,2)+1:end,:)).^2);
+%     con = exp(-rec_f/gamma)./exp(-rec_b/gamma);    
 %     
-%     beta = mexLasso( particleforms{3}, [dic_pos{3} dic_neg{3}], paramSR);
-%     beta = full(beta);
-%     
-%     rec_f = sum(( particleforms{3} - dic_pos{3}*beta(1:size(dic_pos{3},2),:)).^2);      % the confidence value of each candidate
-%     rec_b = sum(( particleforms{3} - dic_neg{3}*beta(size(dic_pos{3},2)+1:end,:)).^2);
-%     con_hist = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
-    
-    for i=2:size(vecfunctions,2)
+% %     beta = mexLasso(particleforms{2}, [dic_pos{2} dic_neg{2}], paramSR);
+% %     beta = full(beta);
+% %     
+% %     rec_f = sum((particleforms{2} - dic_pos{2}*beta(1:size(dic_pos{2},2),:)).^2);      % the confidence value of each candidate
+% %     rec_b = sum((particleforms{2} - dic_neg{2}*beta(size(dic_pos{2},2)+1:end,:)).^2);
+% %     con_gist = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
+% %     
+% %     beta = mexLasso( particleforms{3}, [dic_pos{3} dic_neg{3}], paramSR);
+% %     beta = full(beta);
+% %     
+% %     rec_f = sum(( particleforms{3} - dic_pos{3}*beta(1:size(dic_pos{3},2),:)).^2);      % the confidence value of each candidate
+% %     rec_b = sum(( particleforms{3} - dic_neg{3}*beta(size(dic_pos{3},2)+1:end,:)).^2);
+% %     con_hist = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
+    particleforms{1} = YYY;
+    dic_pos{1} = AAA_pos;
+    dic_neg{1} = AAA_neg;
+    for i=iterations%1:size(vecfunctions,2)
         beta = mexLasso( particleforms{i}, [dic_pos{i} dic_neg{i}], paramSR);
         beta = full(beta);
 
@@ -211,10 +220,16 @@ for f = 1:num
         conn{i} = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
     end
     
-    con_sum  = con;
-    for i=2:size(vecfunctions,2)-1
+%     con_sum  = con;
+    repeat = true;
+    for i=iterations%1:size(vecfunctions,2)-1 % sondaki color histogram sonuclari devredisi -1 ile
 %     con_sum  = con + con_gist;% + con_hist;
-        con_sum = con_sum + conn{i};
+        if repeat==true
+            con_sum  = conn{i};
+            repeat = false;
+        else
+            con_sum = con_sum + conn{i};
+        end
     end
 
 %     %%----------------- Sparsity-based Generative Model (SGM) ----------------%%
@@ -301,7 +316,8 @@ for f = 1:num
 %     results(f,3)=inp(2,4)-inp(2,1);
     
     
-    save('D:\vot7\rests\results.mat', 'results')
+%     save('D:\vot7\rests\results.mat', 'results')
+    save(sprintf('D:\\vot7\\rests\\result_%s_%s.mat',tname,strtrim(sprintf('%d',iterations))), 'results');
     
     %%----------------- Update Scheme ----------------%%
     upRate = 5;
@@ -312,31 +328,32 @@ for f = 1:num
     end
 end
 
-
-
-for t = 1:count
-    afnv	= tracking_res(:,t)';
-
-    rect= round(aff2image(afnv', sz_T));
-    inp	= reshape(rect,2,4);
-    
-%     results(t,1)=inp(1,1)+H/2;
-%     results(t,2)=inp(2,1)+W/2;
-%     results(t,3)=inp(1,4)-inp(1,1);
-%     results(t,4)=inp(2,4)-inp(2,1);
-    
-    results(t,1)=round(mean(inp(2,:)));
-    results(t,2)=round(mean(inp(1,:)));
-    results(t,4)=inp(1,4)-inp(1,1);
-    results(t,3)=inp(2,4)-inp(2,1);
-
-    results;
- 
 end
 
-% results=[1,2,3,4]
-
-% save('d:\l1.mat', 'results');
-csvwrite(output_file, results);
+% for t = 1:count
+%     afnv	= tracking_res(:,t)';
+% 
+%     rect= round(aff2image(afnv', sz_T));
+%     inp	= reshape(rect,2,4);
+%     
+% %     results(t,1)=inp(1,1)+H/2;
+% %     results(t,2)=inp(2,1)+W/2;
+% %     results(t,3)=inp(1,4)-inp(1,1);
+% %     results(t,4)=inp(2,4)-inp(2,1);
+%     
+%     results(t,1)=round(mean(inp(2,:)));
+%     results(t,2)=round(mean(inp(1,:)));
+%     results(t,4)=inp(1,4)-inp(1,1);
+%     results(t,3)=inp(2,4)-inp(2,1);
+% 
+%     results;
+%  
+% end
+% end
+% 
+% % results=[1,2,3,4]
+% 
+% % save('d:\l1.mat', 'results');
+% csvwrite(output_file, results);
 % vot_deinitialize(results);
 

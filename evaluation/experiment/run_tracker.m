@@ -71,7 +71,7 @@ try
     if status ~= 0 
         print_debug('WARNING: System command has not exited normally.');
     end;
-
+    trajectory =0;
 catch e
 
 	% Reassign old library paths if necessary
@@ -82,34 +82,34 @@ catch e
     print_debug('ERROR: Exception thrown "%s".', e.message);
 end;
 
-cd(old_directory);
+% cd(old_directory);
+% 
+% % validate and process results
+% trajectory = load_trajectory(output_file);
+% 
+% n_frames = size(trajectory, 1);
+% 
+% time = time / (sequence.length-start);
+% 
+% if (n_frames ~= (sequence.length-start) + 1)
+%     print_debug('WARNING: Tracker did not produce a valid trajectory file.');
+%     
+%     if ~isempty(output)
+%         print_text('Printing command line output:');
+%         print_text('-------------------- Begin raw output ------------------------');
+%         disp(output);
+%         print_text('--------------------- End raw output -------------------------');
+%     end;
+%     
+%     if isempty(trajectory)
+%         error('No result produced by tracker. Stopping.');
+%     else
+%         error('The number of frames is not the same as in groundtruth. Stopping.');
+%     end;
+% end;
 
-% validate and process results
-trajectory = load_trajectory(output_file);
-
-n_frames = size(trajectory, 1);
-
-time = time / (sequence.length-start);
-
-if (n_frames ~= (sequence.length-start) + 1)
-    print_debug('WARNING: Tracker did not produce a valid trajectory file.');
-    
-    if ~isempty(output)
-        print_text('Printing command line output:');
-        print_text('-------------------- Begin raw output ------------------------');
-        disp(output);
-        print_text('--------------------- End raw output -------------------------');
-    end;
-    
-    if isempty(trajectory)
-        error('No result produced by tracker. Stopping.');
-    else
-        error('The number of frames is not the same as in groundtruth. Stopping.');
-    end;
-end;
-
-if track_properties.cleanup
-    % clean-up temporary directory
-    recursive_rmdir(working_directory);
-end;
+% if track_properties.cleanup
+%     % clean-up temporary directory
+%     recursive_rmdir(working_directory);
+% end;
 

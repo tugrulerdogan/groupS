@@ -9,7 +9,7 @@ function [hists, param ] = vec2gist( wimgs, param )
     for i = 1:sz
         
 %         gists(:,i) = LMgist(reshape(wimgs(:,i),32,32), '', param);
-        hists(:,i) = imhist(uint8(reshape(wimgs(:,1),32,32)));
+        hists(:,i) = imhist(uint8(reshape(wimgs(:,1),32,32)))/size(wimgs(:,1),1);
         
     end
     

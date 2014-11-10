@@ -1,4 +1,4 @@
-function [wimgs Y param] = affineSample(frm, sz, opt, param)
+function [wimgs Y param o] = affineSample(frm, sz, opt, param, o_old)
 % function [wimgs Y param] = affineSample(frm, sz, opt, param)
 % draw N candidates with particle filter
 
@@ -18,16 +18,20 @@ function [wimgs Y param] = affineSample(frm, sz, opt, param)
 %% All rights reserved.
 %% Date: 05/2012
 
+n = opt.numsample;  % Sampling Number
 
-n = opt.numsample;                  % Sampling Number
+if o_old == 0
 
-param.param0 = zeros(6,n);          % Affine Parameter Sampling
-param.param = zeros(6,n);
-param.param0 = repmat(affparam2geom(param.est(:)), [1,n]);
-randMatrix = randn(6,n);
-param.param = param.param0 + randMatrix.*repmat(opt.affsig(:),[1,n]);
+    param.param0 = zeros(6,n);          % Affine Parameter Sampling
+    param.param = zeros(6,n);
+    param.param0 = repmat(affparam2geom(param.est(:)), [1,n]);
+    randMatrix = randn(6,n);
+    param.param = param.param0 + randMatrix.*repmat(opt.affsig(:),[1,n]);
 
-o = affparam2mat(param.param);      % Extract or Warp Samples which are related to above affine parameters
+    o = affparam2mat(param.param);      % Extract or Warp Samples which are related to above affine parameters
+else
+    o = o_old;
+end
 wimgs = warpimg(frm, o, sz);
 
 m = prod(opt.tmplsize);             % vectorization

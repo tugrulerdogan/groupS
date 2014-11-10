@@ -8,10 +8,11 @@
 % imageSize = [ te(2) te(1) ];
 imageSize = [ 320 240 ];
 
-if f == 1
-figure('position',[ 100 100 imageSize(2) imageSize(1) ]);
+% if f == 1
+% figure('position',[ 100 100 imageSize(2) imageSize(1) ]);
+figure(2);
 set(gcf,'DoubleBuffer','on','MenuBar','none');
-end
+% end
 
 axes(axes('position', [0 0 1.0 1.0]));
 imagesc(img_color, [0,1]);

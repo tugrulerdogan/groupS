@@ -32,10 +32,10 @@ function [ diff mean nums2] = calculate_diff(groundtruth , rests )
             rigthbottomx = min(orig(1)+orig(3),grp(5));
             rigthbottomy = min(orig(2)+orig(4),grp(6));
 
-            owidth = rigthbottomx - lefttopx
-            iheight = rigthbottomy - lefttopy
+            owidth = rigthbottomx - lefttopx;
+            iheight = rigthbottomy - lefttopy;
 
-             diff(i) = abs(owidth*iheight - w_p*h_p);
+             diff(i) = abs(owidth*iheight - w_p*h_p)/owidth*iheight;
              
              if  (1.0*(diff(i))/owidth*iheight >= 0.5)
                  

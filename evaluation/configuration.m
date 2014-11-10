@@ -16,7 +16,9 @@ tracker_identifier = 'L1';
 track_properties.repeat = 2;
 path = 'D:\vot7\examples\matlab2'
 
-tracker_command = ['D:\matlab\bin\matlab.exe -wait -nodesktop -nosplash -r "addpath(' path '); wrapper"'];
+% tracker_command = ['D:\matlab\bin\matlab.exe -wait -nodesktop -nosplash -r "addpath(' path '); wrapper"'];
+
+tracker_command = ['D:\matlab\bin\matlab.exe -wait -nodesktop -nosplash -r "wrapper"'];
 
 tracker_linkpath = {}; % A cell array of custom library directories used by the tracker executable.
 

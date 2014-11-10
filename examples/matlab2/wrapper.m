@@ -23,9 +23,13 @@ addpath(tracker_directory);
 % **********************************
 [images, region] = vot_initialize();
 
-load('D:\vot7\rests\gists.mat')
+% load('D:\vot7\rests\gists.mat')
 
 itrts = {[1] [2] [3] [1, 2] [1, 3] [2, 3] [1, 2, 3]}
+% itrts = {[1]}% [2] [3] [1, 2] [1, 3] [2, 3] [1, 2, 3]}
+itrts = {[3]}
+
+lambd = 6;
 
 for iterations = itrts
 iterations = cell2mat(iterations)
@@ -37,6 +41,16 @@ index_start = 1;
 f_thresh = 0.16;
 % Number max of iterations to converge
 max_it = 5;
+
+
+% sonuclari yeni normalizasyona gore yeniden kostur
+% gamma degerini otomatik uret otalama recf, recb, recf-recb degerelerini
+%      incele nasil bir gamma sececigmizi anlatacak 10 sekans icin NxT
+%      kadar veri icin
+
+%  whitening gama icin yada baska makina ogrenmesi
+
+
 
 count = size(images,1);
 
@@ -56,6 +70,15 @@ H = region(4);
 
 x = x + W/2;
 y = y + H/2;
+
+quality_cons = 0.01;
+wight = ones(1,3)*(1/size(iterations,2));%)[1/3 1/3 1/3];
+
+% beklentimi tekil ornegin iyi calistigi orneklerde gozlemel
+% % % % % % % % % % normalizasyon probleminden dolayi yaklasik recons sonularini coz
+%  recf recb cizdir min max ortalama, farklarini cizdir 
+% % % % % % % % % % % % % % % % % % %  color tracker mutlaka calsmali
+% onder hoca mail
 
 
 addpath('tracker');
@@ -83,7 +106,23 @@ num_n = 200;
 [bf,tname,bf] = fileparts(dataPath)
 [A_pos A_neg] = affineTrainG(dataPath, sz, opt, param, num_p, num_n, forMat, p0); 
 
+[dataPath '00000001' forMat]
+img_color = imread([dataPath '\\' sprintf('%8.8d',1) forMat]);
 
+
+[A_posr A_negr] = affineTrainG_RGB(dataPath, sz, opt, param, num_p, num_n, forMat, p0, img_color(:,:,1)); 
+[A_posg A_negg] = affineTrainG_RGB(dataPath, sz, opt, param, num_p, num_n, forMat, p0, img_color(:,:,2)); 
+[A_posb A_negb] = affineTrainG_RGB(dataPath, sz, opt, param, num_p, num_n, forMat, p0, img_color(:,:,3)); 
+
+A_posRGB = reshape([A_posr A_posg A_posb], [size(A_posr),3]);
+A_negRGB = reshape([A_negr A_negg A_negb], [size(A_negr),3]);
+
+
+A_posRGB = reshape([A_pos A_pos A_pos], [size(A_posr),3]);
+A_negRGB = reshape([A_neg A_neg A_neg], [size(A_negr),3]);
+    
+figure(6);
+imshow(uint8(mMergeVect(A_posRGB, [32,32,3])));
 
 
 
@@ -101,11 +140,17 @@ for i=iterations%2:size(vecfunctions,2)
     
    [dic_pos{i},  param] = vecfunctions{i}(A_pos, param);
    [dic_neg{i},  param] = vecfunctions{i}(A_neg, param);
+   dic_pos{i} = normVector(dic_pos{i});
+   dic_neg{i} = normVector(dic_neg{i});
 
     
     
 end
 
+   [dic_pos{3},  param] = vec2histcolor(A_posRGB, param);
+   [dic_neg{3},  param] = vec2histcolor(A_negRGB, param);
+   dic_pos{3} = normVector(dic_pos{3});
+   dic_neg{3} = normVector(dic_neg{3});
 
 
 
@@ -136,6 +181,16 @@ paramSR.mode = 2;
 alpha_p = zeros(Fisize, prod(patchnum), num);
 result = zeros(num, 6);
 results = zeros(num, 10);
+recs = zeros(3,10,400);
+
+
+% !!! PERSEMBE !!!
+% 27/10/2014 kodalama kodlaam persembe gunune optimum degerler adaptive deger;ler
+% icin. her optimum degerler icin tablo.
+
+%  color histogram hesaplamadan once, piksel degerlerini 0-1 e cek. r g b histogramlarinin arka arkaya concat et. 
+% sonuclarinin 0-255 araligina cekmeliyiz
+
 
 
 
@@ -153,14 +208,35 @@ for f = 1:num
     %%----------------- Sparsity-based Discriminative Classifier (SDC) ----------------%%
     gamma = 0.4;
     
-    [wimgs Y param] = affineSample(double(img), sz, opt, param);    % draw N candidates with particle filter
-            
+    [wimgs Y param] = affineSample(double(img), sz, opt, param,0);    % draw N candidates with particle filter
+    
+    param2 = param;
+   
+    [wimgr Y2 param2, o_new] = affineSample(double(img_color(:,:,1)), sz, opt, param, 0);
+    [wimgg Y2 param2, o_new] = affineSample(double(img_color(:,:,2)), sz, opt, param, o_new);
+    [wimgb Y2 param2, o_new] = affineSample(double(img_color(:,:,3)), sz, opt, param, o_new);
+    
+    wimgRGB = reshape([wimgr wimgg wimgb], [size(wimgr),3]);
+    wimgRGB = reshape([wimgs wimgs wimgs], [size(wimgr),3]);
 
+    
+    figure(7);
+    imshow(uint8(mMergeIm(wimgRGB, [32,32,3])));
+    
+%     Bu hafta yapilanlar:
+%       seyrek kodlamaya pozitif olma cons getirildi
+%       seyrek kod ciktisi normalize edildi
+%       debug cizimleri yapidldi.
+
+
+% 
     
     for i = iterations% 2:size(imfunctions,2)
         [particleforms{i} param] = imfunctions{i}(wimgs, param);
     end
-
+    
+    [particleforms{3} param] = im2histcolor(wimgRGB, param);
+%     particleforms{3}(:,1) = dic_pos{3}(:,1);
     
 % %     Y = gists;
 %     YYY_gist = particleforms{2};
@@ -211,24 +287,78 @@ for f = 1:num
     particleforms{1} = YYY;
     dic_pos{1} = AAA_pos;
     dic_neg{1} = AAA_neg;
+    
+    paramSR.numThreads=-1;    
+%     paramSR.pos=true;
+
     for i=iterations%1:size(vecfunctions,2)
         beta = mexLasso( particleforms{i}, [dic_pos{i} dic_neg{i}], paramSR);
         beta = full(beta);
+        beta = normc(beta);
 
-        rec_f = sum(( particleforms{i} - dic_pos{i}*beta(1:size(dic_pos{i},2),:)).^2);      % the confidence value of each candidate
-        rec_b = sum(( particleforms{i} - dic_neg{i}*beta(size(dic_pos{i},2)+1:end,:)).^2);
-        conn{i} = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
+        rec_f = sum(abs( particleforms{i} - dic_pos{i}*beta(1:size(dic_pos{i},2),:)).^2);      % the confidence value of each candidate
+        rec_b = sum(abs( particleforms{i} - dic_neg{i}*beta(size(dic_pos{i},2)+1:end,:)).^2);
+        if f<=10
+            recs(i,f,:)=rec_f-rec_b;
+        end
+        mm = max(max(rec_f), rec_b);
+% %         mm(1) = 6000;
+% %         conn{i} = exp(-rec_f/mm(1))./exp(-rec_b/mm(1));
+% % %          conn{i} = exp(-rec_f/gamma)./exp(-rec_b/gamma); 
+% % color histogramin degerlerini normalize et hitogramda toplam piksel
+% % sayisin aoranlayarak
+% % gamma degerlerini max degerlerinin yarisini almayi dene
+% % sonucu hacir olanlardan color histogram normalizasyonun fark yaratma
+% % yuzdesine bak
+% % o haftalik yapilan raporu, palnli ol artik son cagri
+% % mail at color histogram karsilstirmasinin
+%         gammabuf = gamma;
+%         if i == 3
+%            gammabuf = 6000 ;
+%         end
+% % %           conn{i} = exp(-abs(rec_f-rec_b)/gammabuf);%./exp(-rec_b/gammabuf);
+% %           conn{i} = exp(-rec_f/gammabuf)./exp(-rec_b/gammabuf);
+
+
+          gammabuf = 500 ;
+
+%           conn{i} = exp(-rec_f/(mm(1)/2))./exp(-rec_b/(mm(1)/2));
+          conn{i} = exp(-rec_f/gammabuf)./exp(-rec_b/gammabuf);
+
+
+          
+          conn{i} = conn{i}/max(conn{i});
+
+          
+          
+%             colorstring = 'ymcrgbk';
+%             h = figure(3); cla;
+%             hold on
+%             
+%               plot(rec_f(:), 'Color', colorstring(1)); %yellow
+%               plot(rec_b(:), 'Color', colorstring(2));  %pink
+%               plot(conn{i}(:), 'Color', colorstring(3)); %green
+%             
+% %             saveas(h,sprintf('D:\\vot7\\rests\\rec\\result_%s_%d.jpg', tname,f))
+%             saveas(h,sprintf('D:\\vot7\\rests\\rec\\result_%s_%s_frame%d.jpg',tname,strtrim(sprintf('%d',iterations)),f));
+            
+         
     end
-    
+% 
+%     if f==11
+%        
+%         recs
+%         
+%     end
 %     con_sum  = con;
     repeat = true;
     for i=iterations%1:size(vecfunctions,2)-1 % sondaki color histogram sonuclari devredisi -1 ile
 %     con_sum  = con + con_gist;% + con_hist;
         if repeat==true
-            con_sum  = conn{i};
+            con_sum  = wight(i)*conn{i};
             repeat = false;
         else
-            con_sum = con_sum + conn{i};
+            con_sum = con_sum + wight(i)*conn{i};
         end
     end
 
@@ -302,6 +432,125 @@ for f = 1:num
     
     
     param.est = affparam2mat(param.param(:,id_max));
+    
+    
+%     s_mat = repmat(param.est,1,size(param.param,2));
+%     
+%     eq_dif = param.param - s_mat;
+%     eq_dif_sq = eq_dif' * eq_dif;
+%     eq_dif_sq_vec = diag(eq_dif_sq);
+%     nrm = sum(eq_dif_sq_vec);
+%     
+    qlt = zeros(3,1);
+%     
+%     for i=iterations
+%         qlt(i) = nrm/sum((conn{i}/max(conn{i}))' .* eq_dif_sq_vec);
+%     end
+%     
+%     
+%     
+%     
+%     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     dfff=0;
+%     dfff_wgt = zeros(3,1);
+%     
+%     for i=iterations
+%     conn{i} = (conn{i}/max(conn{i}));
+%     end
+%     
+%     for ll = 1:size(param.param,2)
+%        
+%         dfff = dfff + norm(abs(param.param(:,ll) - param.est),lambd);
+%         for i=iterations
+%             dfff_wgt(i) = dfff_wgt(i) + conn{i}(ll).* norm(abs(param.param(:,ll) - param.est),lambd);
+%             % 12 sekans
+% %             latekteki tablolarla, avarage ranklar ile 
+% % tek eksik kaliyorsa adaptive olsun, 
+% % normalizasyondan sonra p ussunu al
+% % kodu birebir vcevir
+%         end
+%         
+%     end
+%     
+%     for i=iterations
+%      qlt(i) = (dfff/dfff_wgt(i)) % sparse codingden donen degeri max degere gore normalize ettigim icin zaten max deger 1 olasilikli oluyor diye carpmadim
+%     end
+%      
+%     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     
+%     
+%     
+%     if f == 1
+%        
+%         old_qlt = qlt;
+%         
+%     else
+%         
+%         d_sum = sum(old_qlt - qlt);
+%         for i=iterations
+%            
+%             wight(i) = wight(i) + (quality_cons)*qlt(i)/d_sum;
+%             
+%         end
+%         
+%     end
+    
+%     wight = [1/3 1/3 1/3];
+    
+qsum1 = 0;
+qsum2 = 0;
+qsum = 0;
+difff = 0;
+
+for b=iterations
+%  for(b = 0; b < n; b++)     
+%     {
+        qsum1= 0;
+        qsum2= 0;
+        
+        for i = 1:size(param.param,2)
+%         for(i=1;i<nParticles;i++)
+%         {
+             
+            difff = difff + norm(abs(param.param(:,i) - param.est),lambd);
+
+            qsum1 = qsum1 + (1.0/size(param.param,2))*(difff^lambd);%pow(diff,4);
+%             qsum2 += (exp(-1*scores[i][b]*scores[i][b]/0.02))*pow(diff,4);
+            qsum2 = qsum2 + conn{b}(i)*(difff^lambd);%pow(difff,lambd);
+            
+%         }
+        end
+        
+%         qsum1 
+%         qsum2
+        qlt(b) = qsum1/(qsum2);%exp(-1*score1[b]*score1[b]/0.02)*qsum1/(qsum2);
+        qsum = qsum + qlt(b);
+%     }
+end
+
+
+delta_t = 0.1;
+
+for b=iterations
+%     for(b = 0; b < n; b++)
+%     {
+        qsum
+        
+        if (qsum>0)
+%         {
+            qlt(b) = qlt(b) /qsum;
+            wight(b) = (1-delta_t) * wight(b) + delta_t * qlt(b);
+%         }
+        end
+%         else
+%             newWts[Index2D(0,b,1,n)] = Wts[b];
+%     }
+end
+
+% wight
+        
+    
+    
 %     param.est = (param.est + affparam2mat(param.param(:,id_max_gist)))/2;
     result(f,:) = param.est';
     displayResult_sf;                                               % display the tracking result in each frame

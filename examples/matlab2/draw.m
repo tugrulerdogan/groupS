@@ -51,5 +51,4 @@ plot([rst(5) rst(7)], [rst(6) rst(8)], colorstring(i), 'linewidth', 2.5)
 plot([rst(7) rst(1)], [rst(8) rst(2)], colorstring(i), 'linewidth', 2.5)
 
 i = i+1;
-w_dir = fullfile('D:\vot7\rests', basename)
 end
